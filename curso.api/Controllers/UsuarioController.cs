@@ -1,8 +1,11 @@
-﻿using curso.api.Filters;
+﻿using curso.api.Business.Entities;
+using curso.api.Filters;
+using curso.api.Infrastructure.Data;
 using curso.api.Models;
 using curso.api.Models.Usuarios;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Swashbuckle.AspNetCore.Annotations;
 using System;
@@ -67,11 +70,37 @@ namespace curso.api.Controllers
                 Usuario = usuarioViewModelOutput
             });
         }
+        /// <summary>
+        /// Esse serviço permite cadastrar um usuario 
+        /// </summary>
+        /// <param name="registroViewModelInput"></param>
+        /// <returns></returns>
+        [SwaggerResponse(statusCode: 200, description: "Sucesso ao autenticar", Type = typeof(LoginViewModelInput))]
+        [SwaggerResponse(statusCode: 400, description: "Campos obrigatórios", Type = typeof(ValidaCampoViewModelOutput))]
+        [SwaggerResponse(statusCode: 500, description: "Erro interno", Type = typeof(ErroGenericoViewModel))]
         [HttpPost]
         [Route("registrar")]
         [ValidacaoViewModelStateCustomizado]
         public IActionResult Registrar(RegistroViewModelInput registroViewModelInput)
         {
+            var optionsBuilder = new DbContextOptionsBuilder<CursoDbContext>();
+            optionsBuilder.UseSqlServer("Data Source=DESKTOP-MNKOETH;Initial Catalog=DB_CURSO;Integrated Security=True");
+            CursoDbContext context = new CursoDbContext(optionsBuilder.Options);
+
+            var migracoesPendentes = context.Database.GetPendingMigrations();
+
+            if(migracoesPendentes.Count() > 0)
+            {
+                context.Database.Migrate();
+            }
+
+            var usuario = new Usuario();
+            usuario.Login = registroViewModelInput.Login;
+            usuario.Senha = registroViewModelInput.Senha;
+            usuario.Email = registroViewModelInput.Email;
+            context.Usuarios.Add(usuario);
+            context.SaveChanges();
+
             return Created("", registroViewModelInput);
         }
     }
